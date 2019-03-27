@@ -3,15 +3,20 @@ const app = express()
 const bodyParser = require('body-parser')
 const MongoClient = require('mongodb').MongoClient
 
-var db
+var db, collection;
 
-MongoClient.connect('REDACTED_MONGODB_URI', (err, database) => {
-  if (err) return console.log(err)
-  db = database
-  app.listen(process.env.PORT || 3000, () => {
-    console.log('listening on 3000')
-  })
-})
+const url = "REDACTED_MONGODB_URI";
+const dbName = "demo";
+
+app.listen(3000, () => {
+    MongoClient.connect(url, { useNewUrlParser: true }, (error, client) => {
+        if(error) {
+            throw error;
+        }
+        db = client.db(dbName);
+        console.log("Connected to `" + dbName + "`!");
+    });
+});
 
 app.set('view engine', 'ejs')
 app.use(bodyParser.urlencoded({extended: true}))
@@ -19,6 +24,7 @@ app.use(bodyParser.json())
 app.use(express.static('public'))
 
 app.get('/', (req, res) => {
+  //console.log(db)
   db.collection('messages').find().toArray((err, result) => {
     if (err) return console.log(err)
     res.render('index.ejs', {messages: result})
