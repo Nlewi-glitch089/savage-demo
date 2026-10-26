@@ -4,18 +4,41 @@ const bodyParser = require('body-parser')
 const MongoClient = require('mongodb').MongoClient
 const ObjectId = require('mongodb').ObjectId
 
+// Load variables from a local .env file if there is one. On Render they are set in
+// the dashboard instead, so a missing file is fine. (process.loadEnvFile needs Node 20.12+.)
+if (process.loadEnvFile) {
+  try {
+    process.loadEnvFile()
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err
+  }
+}
+
 var db, collection;
 
-const url = "REDACTED_MONGODB_URI";
-const dbName = "demo";
+// The connection string comes from the MONGODB_URI environment variable instead of
+// being written here, because this repo is public. Render provides PORT.
+const url = process.env.MONGODB_URI;
+const dbName = process.env.MONGODB_DB_NAME || "demo";
+const port = process.env.PORT || 3000;
 
-app.listen(3000, () => {
-    MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true }, (error, client) => {
-        if(error) {
-            throw error;
-        }
-        db = client.db(dbName);
-        console.log("Connected to `" + dbName + "`!");
+if (!url) {
+  console.error('MONGODB_URI is not set. Copy .env.example to .env for local development, or add it under Environment in the Render dashboard.')
+  process.exit(1)
+}
+
+// Connect first, then listen, so no request arrives before db is ready.
+// If the connection fails, log only the error's name and message (the full error
+// object can include connection details) and exit so Render reports the failure.
+MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true }, (error, client) => {
+    if(error) {
+        console.error('Could not connect to MongoDB:', error.name, '-', error.message)
+        process.exit(1)
+    }
+    db = client.db(dbName);
+    console.log("Connected to `" + dbName + "`!");
+    app.listen(port, () => {
+        console.log('Listening on port ' + port)
     });
 });
 
